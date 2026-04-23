@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Calorie & Nutrition Tracker for Indian foods with live search, meal tracking, BMI, goals, favorites, charts, and dark mode." />
+  <meta name="theme-color" content="#0f172a" />
+  <title>NutriIndia Pro — Calorie & Nutrition Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #081120;
+      --bg-soft: #0f1b31;
+      --panel: rgba(255,255,255,0.1);
+      --panel-strong: rgba(255,255,255,0.16);
+      --text: #ecf3ff;
+      --muted: #aac0e6;
+      --line: rgba(255,255,255,0.12);
+      --primary: #6ee7b7;
+      --primary-2: #60a5fa;
+      --danger: #fb7185;
+      --warning: #fbbf24;
+      --shadow: 0 15px 40px rgba(0,0,0,.25);
+      --radius: 24px;
+      --radius-sm: 16px;
+      --blur: blur(18px);
+    }
+
+    body.light {
+      --bg: #eef4ff;
+      --bg-soft: #dbe7ff;
+      --panel: rgba(255,255,255,0.72);
+      --panel-strong: rgba(255,255,255,0.88);
+      --text: #0f172a;
+      --muted: #42526b;
+      --line: rgba(15,23,42,0.1);
+      --shadow: 0 20px 50px rgba(37,99,235,.12);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(96,165,250,.22), transparent 28%),
+        radial-gradient(circle at top right, rgba(110,231,183,.18), transparent 24%),
+        linear-gradient(135deg, var(--bg), var(--bg-soft));
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      z-index: -1;
+      opacity: .45;
+      animation: float 10s ease-in-out infinite;
+    }
+    .orb-1 { width: 280px; height: 280px; background: rgba(96,165,250,.25); top: 0; left: -60px; }
+    .orb-2 { width: 320px; height: 320px; background: rgba(110,231,183,.18); right: -80px; top: 120px; animation-delay: -3s; }
+    .orb-3 { width: 240px; height: 240px; background: rgba(251,113,133,.14); bottom: 40px; left: 35%; animation-delay: -6s; }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0) translateX(0) scale(1); }
+      50% { transform: translateY(-20px) translateX(10px) scale(1.04); }
+    }
+
+    .container { width: min(1180px, calc(100% - 24px)); margin: 0 auto; }
+    .glass {
+      background: var(--panel);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .card {
+      border-radius: var(--radius);
+      padding: 18px;
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .card:hover { transform: translateY(-4px); }
+    .section-title { font-size: clamp(1.25rem, 2vw, 2rem); margin: 0 0 14px; }
+    .muted { color: var(--muted); }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8,17,32,.45);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line);
+    }
+    body.light header { background: rgba(238,244,255,.72); }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0;
+      gap: 12px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: .2px;
+    }
+    .brand-badge {
+      width: 42px; height: 42px; border-radius: 14px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #04111d; font-size: 1.2rem; box-shadow: 0 10px 24px rgba(96,165,250,.28);
+    }
+    .nav-actions { display: flex; gap: 10px; align-items: center; }
+
+    .btn, button, select, input {
+      font: inherit;
+    }
+    .btn {
+      border: 0;
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 16px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+      border: 1px solid var(--line);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.15);
+    }
+    .btn:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 14px 28px rgba(0,0,0,.22); }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      color: #04111d;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow: 0 14px 30px rgba(96,165,250,.3);
+    }
+    .btn-danger { background: linear-gradient(135deg, rgba(251,113,133,.25), rgba(251,113,133,.12)); }
+    .ripple {
+      position: absolute; border-radius: 50%; transform: scale(0); animation: ripple .55s linear;
+      background: rgba(255,255,255,.45); pointer-events: none;
+    }
+    @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+    .hero {
+      padding: 28px 0 12px;
+      display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px;
+    }
+    .hero-card { padding: 26px; min-height: 320px; position: relative; overflow: hidden; }
+    .hero h1 { font-size: clamp(2rem, 4vw, 4rem); line-height: 1.02; margin: 0 0 12px; }
+    .hero p { max-width: 700px; }
+    .hero-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+    .pill { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.08); }
+    .hero-image {
+      position: absolute; right: -10px; bottom: -20px; width: min(50%, 320px);
+      max-width: 100%; filter: drop-shadow(0 18px 30px rgba(0,0,0,.22)); animation: float 8s ease-in-out infinite;
+    }
+    .hero-side { display: grid; gap: 16px; }
+
+    .grid { display: grid; gap: 18px; }
+    .tracker-layout { grid-template-columns: 1.08fr .92fr; }
+
+    .search-wrap { position: relative; }
+    .search-box {
+      display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+      border-radius: 20px; background: var(--panel-strong); border: 1px solid var(--line);
+    }
+    .search-box input, .input, .select {
+      width: 100%; background: transparent; border: 0; outline: none; color: var(--text);
+    }
+    .suggestions {
+      position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 20;
+      background: var(--panel-strong); border: 1px solid var(--line); border-radius: 18px;
+      backdrop-filter: blur(14px); box-shadow: var(--shadow); overflow: hidden; display: none;
+    }
+    .suggestion { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; }
+    .suggestion:hover { background: rgba(255,255,255,.08); }
+    .suggestion img { width: 52px; height: 52px; object-fit: cover; border-radius: 14px; }
+
+    .food-preview { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; }
+    .food-preview img { width: 120px; height: 120px; border-radius: 20px; object-fit: cover; border: 1px solid var(--line); }
+    .macro-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: 14px; }
+    .macro { padding: 14px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+    .macro strong { display: block; font-size: 1.15rem; margin-top: 4px; }
+
+    .controls { display: grid; grid-template-columns: 1fr 140px 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .field { padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+
+    .meal-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+    .dashboard-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .mini-stat { padding: 16px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+    .mini-stat h3 { margin: 0; font-size: .95rem; color: var(--muted); font-weight: 600; }
+    .mini-stat p { margin: 8px 0 0; font-size: 1.35rem; font-weight: 800; }
+
+    .meal-list, .favorites-list, .history-list { display: grid; gap: 12px; }
+    .meal-item {
+      display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; align-items: center;
+      padding: 12px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid var(--line);
+    }
+    .meal-item img { width: 58px; height: 58px; border-radius: 16px; object-fit: cover; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 10px; background: rgba(255,255,255,.08); border: 1px solid var(--line); font-size: .8rem; }
+
+    .bmi-grid, .goal-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+    .canvas-wrap { padding: 12px; border-radius: 22px; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.12) 37%, rgba(255,255,255,.06) 63%);
+      background-size: 400% 100%; animation: shimmer 1.3s infinite linear; border-radius: 16px;
+    }
+    @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+    .footer { padding: 30px 0 60px; color: var(--muted); text-align: center; }
+
+    .fade-up { opacity: 0; transform: translateY(18px); animation: fadeUp .6s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 980px) {
+      .hero, .tracker-layout { grid-template-columns: 1fr; }
+      .dashboard-cards { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 720px) {
+      .controls, .bmi-grid, .goal-grid { grid-template-columns: 1fr; }
+      .food-preview { grid-template-columns: 1fr; }
+      .dashboard-cards { grid-template-columns: 1fr 1fr; }
+      .hero-card { min-height: auto; }
+      .hero-image { position: relative; right: auto; bottom: auto; width: 180px; margin-top: 18px; }
+    }
+    @media (max-width: 520px) {
+      .dashboard-cards { grid-template-columns: 1fr; }
+      .nav { flex-wrap: wrap; }
+      .container { width: min(100% - 14px, 1180px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <header>
+    <div class="container nav">
+      <div class="brand">
+        <div class="brand-badge">🥗</div>
+        <div>
+          <div>NutriIndia Pro</div>
+          <small class="muted">Premium Indian Calorie Tracker</small>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button class="btn" id="resetDataBtn">Reset Data</button>
+        <button class="btn btn-primary" id="themeToggle">🌙 Dark Mode</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero fade-up">
+      <div class="glass card hero-card">
+        <span class="badge">AI-style smart nutrition experience</span>
+        <h1>Track Indian food calories with a startup-grade experience.</h1>
+        <p class="muted">Search 50+ Indian foods, calculate nutrition by grams, pieces or servings, log meals, monitor calories, calculate BMI, set goals, save favorites, and review your meal history — all in one elegant mobile-first app.</p>
+        <div class="hero-stats">
+          <div class="pill">⚡ Fast local performance</div>
+          <div class="pill">📊 Daily charts</div>
+          <div class="pill">🥘 Indian food database</div>
+          <div class="pill">🌗 Light / Dark mode</div>
+        </div>
+        <img class="hero-image" src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80" alt="Healthy Indian food platter" />
+      </div>
+      <div class="hero-side">
+        <div class="glass card">
+          <h2 class="section-title">Today at a glance</h2>
+          <div class="dashboard-cards">
+            <div class="mini-stat"><h3>Total Calories</h3><p id="totalCalories">0</p></div>
+            <div class="mini-stat"><h3>Protein</h3><p id="totalProtein">0g</p></div>
+            <div class="mini-stat"><h3>Carbs</h3><p id="totalCarbs">0g</p></div>
+            <div class="mini-stat"><h3>Fats</h3><p id="totalFats">0g</p></div>
+          </div>
+        </div>
+        <div class="glass card">
+          <h2 class="section-title">Goal status</h2>
+          <p class="muted" id="goalStatus">Set your calorie goal to see progress.</p>
+          <div class="canvas-wrap"><canvas id="goalChart" height="140"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid tracker-layout fade-up" style="animation-delay:.08s">
+      <div class="glass card">
+        <h2 class="section-title">Food Search & Nutrition</h2>
+        <div class="search-wrap">
+          <div class="search-box">
+            <span>🔎</span>
+            <input id="foodSearch" type="text" placeholder="Search Indian foods like roti, paneer, biryani, dosa..." autocomplete="off" />
+          </div>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+
+        <div id="previewSkeleton" style="margin-top:16px; display:none;">
+          <div class="skeleton" style="height:120px;"></div>
+        </div>
+
+        <div id="foodDetails" style="margin-top:16px;"></div>
+      </div>
+
+      <div class="grid">
+        <div class="glass card">
+          <h2 class="section-title">Daily Summary</h2>
+          <div class="canvas-wrap"><canvas id="mealChart" height="220"></canvas></div>
+        </div>
+        <div class="glass card">
+          <h2 class="section-title">Meal Tracker</h2>
+          <div class="meal-list" id="mealTracker"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid tracker-layout fade-up" style="margin-top:18px; animation-delay:.14s">
+      <div class="grid">
+        <div class="glass card">
+          <h2 class="section-title">BMI Calculator</h2>
+          <div class="bmi-grid">
+            <div class="field"><input class="input" id="heightInput" type="number" min="50" max="250" placeholder="Height (cm)" /></div>
+            <div class="field"><input class="input" id="weightInput" type="number" min="10" max="300" placeholder="Weight (kg)" /></div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="calcBmiBtn">Calculate BMI</button>
+            <span class="badge" id="bmiResult">BMI: —</span>
+          </div>
+        </div>
+
+        <div class="glass card">
+          <h2 class="section-title">Favorites</h2>
+          <div class="favorites-list" id="favoritesList"></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="glass card">
+          <h2 class="section-title">Goal Setting</h2>
+          <div class="goal-grid">
+            <div class="field">
+              <select id="goalType" class="select">
+                <option value="maintenance">Maintenance</option>
+                <option value="loss">Weight Loss</option>
+                <option value="gain">Weight Gain</option>
+              </select>
+            </div>
+            <div class="field"><input class="input" id="goalCalories" type="number" min="500" max="6000" placeholder="Daily calorie goal" /></div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="saveGoalBtn">Save Goal</button>
+            <span class="badge" id="goalBadge">Goal not set</span>
+          </div>
+        </div>
+
+        <div class="glass card">
+          <h2 class="section-title">Meal History</h2>
+          <div class="history-list" id="historyList"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    Built as a single-file modern nutrition web app with local storage, dynamic calculations, live suggestions, and interactive charts.
+  </footer>
+
+  <script>
+    const foodDB = [
+      {name:'Roti', unit:'piece', baseQty:1, gramsPerUnit:40, calories:120, protein:3.1, carbs:18, fats:3.2, fiber:2.8, vitamins:'Iron, B vitamins', image:'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80'},
+      {name:'Plain Rice', unit:'serving', baseQty:1, gramsPerUnit:150, calories:195, protein:4, carbs:42.5, fats:0.4, fiber:0.6, vitamins:'Manganese, selenium', image:'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?auto=format&fit=crop&w=800&q=80'},
+      {name:'Dal Tadka', unit:'serving', baseQty:1, gramsPerUnit:180, calories:180, protein:9, carbs:22, fats:6, fiber:7, vitamins:'Folate, iron', image:'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80'},
+      {name:'Paneer Butter Masala', unit:'serving', baseQty:1, gramsPerUnit:200, calories:380, protein:14, carbs:12, fats:30, fiber:2, vitamins:'Calcium, vitamin A', image:'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80'},
+      {name:'Chicken Biryani', unit:'serving', baseQty:1, gramsPerUnit:250, calories:420, protein:20, carbs:48, fats:16, fiber:2.5, vitamins:'Iron, B12', image:'https://images.unsplash.com/photo-1701579231305-d84d8af9b8d0?auto=format&fit=crop&w=800&q=80'},
+      {name:'Veg Biryani', unit:'serving', baseQty:1, gramsPerUnit:250, calories:330, protein:8, carbs:52, fats:9, fiber:4, vitamins:'Vitamin C, potassium', image:'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=800&q=80'},
+      {name:'Masala Dosa', unit:'piece', baseQty:1, gramsPerUnit:120, calories:260, protein:6, carbs:35, fats:10, fiber:3, vitamins:'B vitamins', image:'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=800&q=80'},
+      {name:'Plain Dosa', unit:'piece', baseQty:1, gramsPerUnit:100, calories:170, protein:4, carbs:28, fats:4, fiber:2, vitamins:'B vitamins', image:'https://images.unsplash.com/photo-1630383249896-424e482df921?auto=format&fit=crop&w=800&q=80'},
+      {name:'Idli', unit:'piece', baseQty:1, gramsPerUnit:38, calories:58, protein:2, carbs:12, fats:0.4, fiber:0.8, vitamins:'B vitamins', image:'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80'},
+      {name:'Sambar', unit:'serving', baseQty:1, gramsPerUnit:150, calories:95, protein:4, carbs:14, fats:2.5, fiber:3.5, vitamins:'Vitamin C, folate', image:'https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?auto=format&fit=crop&w=800&q=80'},
+      {name:'Medu Vada', unit:'piece', baseQty:1, gramsPerUnit:55, calories:150, protein:4, carbs:14, fats:8, fiber:2, vitamins:'Iron', image:'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80'},
+      {name:'Poha', unit:'serving', baseQty:1, gramsPerUnit:150, calories:180, protein:4, carbs:30, fats:5, fiber:2.5, vitamins:'Iron', image:'https://images.unsplash.com/photo-1626132647523-66f6db14f0b3?auto=format&fit=crop&w=800&q=80'},
+      {name:'Upma', unit:'serving', baseQty:1, gramsPerUnit:180, calories:220, protein:5, carbs:32, fats:8, fiber:3, vitamins:'Iron', image:'https://images.unsplash.com/photo-1675247900267-fd35f5ad9d1f?auto=format&fit=crop&w=800&q=80'},
+      {name:'Samosa', unit:'piece', baseQty:1, gramsPerUnit:90, calories:262, protein:4, carbs:31, fats:13, fiber:3, vitamins:'Iron', image:'https://images.unsplash.com/photo-1601050690117-94f5f6fae8b1?auto=format&fit=crop&w=800&q=80'},
+      {name:'Pav Bhaji', unit:'serving', baseQty:1, gramsPerUnit:230, calories:400, protein:10, carbs:45, fats:18, fiber:8, vitamins:'Vitamin C, A', image:'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80'},
+      {name:'Chole', unit:'serving', baseQty:1, gramsPerUnit:180, calories:240, protein:10, carbs:30, fats:8, fiber:9, vitamins:'Folate, iron', image:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80'},
+      {name:'Rajma', unit:'serving', baseQty:1, gramsPerUnit:180, calories:215, protein:9, carbs:31, fats:6, fiber:9, vitamins:'Iron, folate', image:'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80'},
+      {name:'Palak Paneer', unit:'serving', baseQty:1, gramsPerUnit:180, calories:290, protein:13, carbs:10, fats:21, fiber:4, vitamins:'Vitamin A, calcium, iron', image:'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80'},
+      {name:'Aloo Paratha', unit:'piece', baseQty:1, gramsPerUnit:100, calories:290, protein:7, carbs:36, fats:12, fiber:4, vitamins:'Potassium', image:'https://images.unsplash.com/photo-1631452180539-96aca7d48617?auto=format&fit=crop&w=800&q=80'},
+      {name:'Paneer Paratha', unit:'piece', baseQty:1, gramsPerUnit:110, calories:300, protein:11, carbs:28, fats:15, fiber:3, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80'},
+      {name:'Curd', unit:'serving', baseQty:1, gramsPerUnit:100, calories:98, protein:5, carbs:4, fats:6, fiber:0, vitamins:'Calcium, B12', image:'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=800&q=80'},
+      {name:'Lassi', unit:'serving', baseQty:1, gramsPerUnit:250, calories:180, protein:7, carbs:22, fats:7, fiber:0, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1626074353765-517a681e40be?auto=format&fit=crop&w=800&q=80'},
+      {name:'Buttermilk', unit:'serving', baseQty:1, gramsPerUnit:250, calories:70, protein:4, carbs:8, fats:2, fiber:0, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1626074353765-517a681e40be?auto=format&fit=crop&w=800&q=80'},
+      {name:'Khichdi', unit:'serving', baseQty:1, gramsPerUnit:200, calories:220, protein:8, carbs:34, fats:6, fiber:4, vitamins:'Magnesium', image:'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&w=800&q=80'},
+      {name:'Pulao', unit:'serving', baseQty:1, gramsPerUnit:200, calories:260, protein:6, carbs:38, fats:8, fiber:2.5, vitamins:'Potassium', image:'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?auto=format&fit=crop&w=800&q=80'},
+      {name:'Kadhi', unit:'serving', baseQty:1, gramsPerUnit:180, calories:160, protein:6, carbs:12, fats:9, fiber:1, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1625938144755-652e08e359b7?auto=format&fit=crop&w=800&q=80'},
+      {name:'Bhindi Sabzi', unit:'serving', baseQty:1, gramsPerUnit:150, calories:130, protein:3, carbs:12, fats:7, fiber:5, vitamins:'Vitamin C, K', image:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80'},
+      {name:'Baingan Bharta', unit:'serving', baseQty:1, gramsPerUnit:160, calories:140, protein:3, carbs:12, fats:8, fiber:5, vitamins:'Manganese', image:'https://images.unsplash.com/photo-1596797038530-2c107aaab0b2?auto=format&fit=crop&w=800&q=80'},
+      {name:'Egg Curry', unit:'serving', baseQty:1, gramsPerUnit:180, calories:240, protein:13, carbs:8, fats:16, fiber:1.5, vitamins:'B12, selenium', image:'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80'},
+      {name:'Boiled Egg', unit:'piece', baseQty:1, gramsPerUnit:50, calories:78, protein:6.3, carbs:0.6, fats:5.3, fiber:0, vitamins:'B12, choline', image:'https://images.unsplash.com/photo-1517959105821-eaf2591984d6?auto=format&fit=crop&w=800&q=80'},
+      {name:'Omelette', unit:'serving', baseQty:1, gramsPerUnit:100, calories:154, protein:11, carbs:2, fats:11, fiber:0, vitamins:'B12, D', image:'https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=800&q=80'},
+      {name:'Paneer Tikka', unit:'serving', baseQty:1, gramsPerUnit:150, calories:280, protein:17, carbs:8, fats:19, fiber:1.5, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=80'},
+      {name:'Tandoori Chicken', unit:'serving', baseQty:1, gramsPerUnit:180, calories:265, protein:32, carbs:5, fats:12, fiber:0, vitamins:'B6, niacin', image:'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=800&q=80'},
+      {name:'Butter Chicken', unit:'serving', baseQty:1, gramsPerUnit:200, calories:438, protein:24, carbs:10, fats:33, fiber:1, vitamins:'Vitamin A, B12', image:'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80'},
+      {name:'Fish Curry', unit:'serving', baseQty:1, gramsPerUnit:180, calories:220, protein:22, carbs:7, fats:11, fiber:1, vitamins:'Omega-3, B12', image:'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'},
+      {name:'Dhokla', unit:'piece', baseQty:1, gramsPerUnit:35, calories:50, protein:2.4, carbs:8, fats:1.2, fiber:1, vitamins:'Folate', image:'https://images.unsplash.com/photo-1696927538973-500f692e8b1b?auto=format&fit=crop&w=800&q=80'},
+      {name:'Thepla', unit:'piece', baseQty:1, gramsPerUnit:45, calories:130, protein:3, carbs:18, fats:5, fiber:3, vitamins:'Iron', image:'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80'},
+      {name:'Pani Puri', unit:'serving', baseQty:1, gramsPerUnit:100, calories:150, protein:3, carbs:24, fats:4, fiber:2, vitamins:'Vitamin C', image:'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80'},
+      {name:'Bhel Puri', unit:'serving', baseQty:1, gramsPerUnit:120, calories:180, protein:4, carbs:30, fats:5, fiber:4, vitamins:'Vitamin C', image:'https://images.unsplash.com/photo-1626132647523-66f6db14f0b3?auto=format&fit=crop&w=800&q=80'},
+      {name:'Sev Puri', unit:'serving', baseQty:1, gramsPerUnit:110, calories:210, protein:4, carbs:28, fats:9, fiber:3, vitamins:'Vitamin C', image:'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80'},
+      {name:'Vada Pav', unit:'piece', baseQty:1, gramsPerUnit:140, calories:290, protein:7, carbs:38, fats:12, fiber:4, vitamins:'Potassium', image:'https://images.unsplash.com/photo-1666001120693-b14f0a6e5841?auto=format&fit=crop&w=800&q=80'},
+      {name:'Misal Pav', unit:'serving', baseQty:1, gramsPerUnit:220, calories:350, protein:12, carbs:45, fats:13, fiber:8, vitamins:'Iron', image:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80'},
+      {name:'Sabudana Khichdi', unit:'serving', baseQty:1, gramsPerUnit:180, calories:250, protein:3, carbs:42, fats:8, fiber:2, vitamins:'Magnesium', image:'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&w=800&q=80'},
+      {name:'Matar Paneer', unit:'serving', baseQty:1, gramsPerUnit:180, calories:310, protein:13, carbs:14, fats:22, fiber:4, vitamins:'Calcium, vitamin K', image:'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=800&q=80'},
+      {name:'Aloo Gobi', unit:'serving', baseQty:1, gramsPerUnit:160, calories:170, protein:4, carbs:18, fats:9, fiber:5, vitamins:'Vitamin C', image:'https://images.unsplash.com/photo-1596797038530-2c107aaab0b2?auto=format&fit=crop&w=800&q=80'},
+      {name:'Chicken Curry', unit:'serving', baseQty:1, gramsPerUnit:200, calories:290, protein:26, carbs:8, fats:17, fiber:1, vitamins:'B6, B12', image:'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=800&q=80'},
+      {name:'Moong Dal Chilla', unit:'piece', baseQty:1, gramsPerUnit:70, calories:120, protein:7, carbs:14, fats:4, fiber:3, vitamins:'Folate', image:'https://images.unsplash.com/photo-1630383249896-424e482df921?auto=format&fit=crop&w=800&q=80'},
+      {name:'Appam', unit:'piece', baseQty:1, gramsPerUnit:60, calories:95, protein:2, carbs:18, fats:2, fiber:0.5, vitamins:'B vitamins', image:'https://images.unsplash.com/photo-1630383249896-424e482df921?auto=format&fit=crop&w=800&q=80'},
+      {name:'Puttu', unit:'serving', baseQty:1, gramsPerUnit:150, calories:190, protein:4, carbs:36, fats:2, fiber:4, vitamins:'Manganese', image:'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&w=800&q=80'},
+      {name:'Rasam', unit:'serving', baseQty:1, gramsPerUnit:150, calories:45, protein:1.5, carbs:6, fats:1.5, fiber:1, vitamins:'Vitamin C', image:'https://images.unsplash.com/photo-1625938144755-652e08e359b7?auto=format&fit=crop&w=800&q=80'},
+      {name:'Kheer', unit:'serving', baseQty:1, gramsPerUnit:150, calories:220, protein:6, carbs:30, fats:8, fiber:0.5, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80'},
+      {name:'Gulab Jamun', unit:'piece', baseQty:1, gramsPerUnit:45, calories:150, protein:2, carbs:24, fats:5, fiber:0.2, vitamins:'Calcium', image:'https://images.unsplash.com/photo-1603532648955-039310d9ed75?auto=format&fit=crop&w=800&q=80'},
+      {name:'Jalebi', unit:'piece', baseQty:1, gramsPerUnit:35, calories:130, protein:1, carbs:22, fats:5, fiber:0, vitamins:'—', image:'https://images.unsplash.com/photo-1633945274500-7ac9948e6a0c?auto=format&fit=crop&w=800&q=80'},
+      {name:'Halwa', unit:'serving', baseQty:1, gramsPerUnit:100, calories:280, protein:3, carbs:35, fats:14, fiber:1, vitamins:'Vitamin A', image:'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80'},
+      {name:'Sprouts Salad', unit:'serving', baseQty:1, gramsPerUnit:140, calories:120, protein:8, carbs:18, fats:2, fiber:6, vitamins:'Vitamin C, folate', image:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=800&q=80'},
+      {name:'Fruit Chaat', unit:'serving', baseQty:1, gramsPerUnit:150, calories:95, protein:1.5, carbs:23, fats:0.6, fiber:3.5, vitamins:'Vitamin C, potassium', image:'https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?auto=format&fit=crop&w=800&q=80'}
+    ];
+
+    const state = {
+      selectedFood: null,
+      tracker: JSON.parse(localStorage.getItem('nutri_tracker') || '[]'),
+      favorites: JSON.parse(localStorage.getItem('nutri_favorites') || '[]'),
+      history: JSON.parse(localStorage.getItem('nutri_history') || '[]'),
+      theme: localStorage.getItem('nutri_theme') || 'dark',
+      goal: JSON.parse(localStorage.getItem('nutri_goal') || 'null')
+    };
+
+    const $ = id => document.getElementById(id);
+    const els = {
+      search: $('foodSearch'), suggestions: $('suggestions'), foodDetails: $('foodDetails'), previewSkeleton: $('previewSkeleton'),
+      mealTracker: $('mealTracker'), favoritesList: $('favoritesList'), historyList: $('historyList'),
+      totalCalories: $('totalCalories'), totalProtein: $('totalProtein'), totalCarbs: $('totalCarbs'), totalFats: $('totalFats'),
+      bmiResult: $('bmiResult'), heightInput: $('heightInput'), weightInput: $('weightInput'),
+      goalType: $('goalType'), goalCalories: $('goalCalories'), goalBadge: $('goalBadge'), goalStatus: $('goalStatus')
+    };
+
+    document.body.classList.toggle('light', state.theme === 'light');
+    $('themeToggle').textContent = state.theme === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode';
+
+    function saveState() {
+      localStorage.setItem('nutri_tracker', JSON.stringify(state.tracker));
+      localStorage.setItem('nutri_favorites', JSON.stringify(state.favorites));
+      localStorage.setItem('nutri_history', JSON.stringify(state.history.slice(0, 30)));
+      localStorage.setItem('nutri_theme', state.theme);
+      localStorage.setItem('nutri_goal', JSON.stringify(state.goal));
+    }
+
+    function round(v) { return Math.round(v * 10) / 10; }
+
+    function calcNutrition(food, qty, unitMode) {
+      let factor = 1;
+      if (unitMode === 'grams') factor = qty / food.gramsPerUnit;
+      else factor = qty / food.baseQty;
+      return {
+        calories: round(food.calories * factor), protein: round(food.protein * factor), carbs: round(food.carbs * factor),
+        fats: round(food.fats * factor), fiber: round(food.fiber * factor)
+      };
+    }
+
+    function showSuggestions(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) { els.suggestions.style.display = 'none'; return; }
+      const matches = foodDB.filter(f => f.name.toLowerCase().includes(q)).slice(0, 8);
+      els.suggestions.innerHTML = matches.map(item => `
+        <div class="suggestion" data-name="${item.name}">
+          <img src="${item.image}" alt="${item.name}">
+          <div>
+            <strong>${item.name}</strong>
+            <div class="muted">${item.calories} kcal • ${item.protein}g protein • ${item.unit}</div>
+          </div>
+        </div>`).join('') || '<div class="suggestion"><div>No results found</div></div>';
+      els.suggestions.style.display = 'block';
+      [...els.suggestions.querySelectorAll('.suggestion[data-name]')].forEach(el => el.onclick = () => selectFood(el.dataset.name));
+    }
+
+    function renderFoodDetails(food) {
+      state.selectedFood = food;
+      els.previewSkeleton.style.display = 'block';
+      els.foodDetails.innerHTML = '';
+      setTimeout(() => {
+        els.previewSkeleton.style.display = 'none';
+        const fav = state.favorites.includes(food.name);
+        const nutrition = calcNutrition(food, 1, food.unit);
+        els.foodDetails.innerHTML = `
+          <div class="food-preview">
+            <img src="${food.image}" alt="${food.name}">
+            <div>
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+                <div>
+                  <h3 style="margin:0 0 6px; font-size:1.5rem;">${food.name}</h3>
+                  <div class="muted">Base serving: ${food.baseQty} ${food.unit} (${food.gramsPerUnit}g approx)</div>
+                </div>
+                <button class="btn ${fav ? 'btn-danger' : ''}" id="favBtn">${fav ? '♥ Remove Favorite' : '♡ Save Favorite'}</button>
+              </div>
+              <div class="macro-grid" id="macroGrid"></div>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="field"><input class="input" id="qtyInput" type="number" min="1" value="1" placeholder="Quantity"></div>
+            <div class="field">
+              <select class="select" id="unitMode">
+                <option value="${food.unit}">${food.unit}</option>
+                <option value="grams">grams</option>
+                <option value="serving">serving</option>
+              </select>
+            </div>
+            <div class="field">
+              <select class="select" id="mealType">
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snacks">Snacks</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="addTrackerBtn">Add to Tracker</button>
+          </div>
+          <div class="meal-buttons">
+            <span class="badge">Fiber <strong id="fiberVal">${nutrition.fiber}g</strong></span>
+            <span class="badge">Vitamins & Minerals: ${food.vitamins || '—'}</span>
+          </div>
+        `;
+        updateMacroGrid(food, 1, food.unit);
+        $('qtyInput').addEventListener('input', () => updateFoodDynamic(food));
+        $('unitMode').addEventListener('change', () => updateFoodDynamic(food));
+        $('addTrackerBtn').onclick = () => addToTracker(food);
+        $('favBtn').onclick = () => toggleFavorite(food.name);
+        bindRipple();
+      }, 500);
+    }
+
+    function updateMacroGrid(food, qty, unitMode) {
+      const n = calcNutrition(food, qty, unitMode);
+      $('macroGrid').innerHTML = `
+        <div class="macro"><span class="muted">Calories</span><strong>${n.calories} kcal</strong></div>
+        <div class="macro"><span class="muted">Protein</span><strong>${n.protein} g</strong></div>
+        <div class="macro"><span class="muted">Carbohydrates</span><strong>${n.carbs} g</strong></div>
+        <div class="macro"><span class="muted">Fats</span><strong>${n.fats} g</strong></div>
+      `;
+      $('fiberVal').textContent = n.fiber + 'g';
+    }
+
+    function updateFoodDynamic(food) {
+      const qty = Math.max(1, Number($('qtyInput').value || 1));
+      const unitMode = $('unitMode').value;
+      updateMacroGrid(food, qty, unitMode);
+    }
+
+    function selectFood(name) {
+      const food = foodDB.find(f => f.name === name);
+      els.suggestions.style.display = 'none';
+      els.search.value = name;
+      if (food) renderFoodDetails(food);
+    }
+
+    function addToTracker(food) {
+      const qty = Math.max(1, Number($('qtyInput').value || 1));
+      const unitMode = $('unitMode').value;
+      const meal = $('mealType').value;
+      const nutrition = calcNutrition(food, qty, unitMode);
+      const entry = { id: Date.now(), name: food.name, image: food.image, qty, unitMode, meal, nutrition, ts: new Date().toLocaleString() };
+      state.tracker.unshift(entry);
+      state.history.unshift(entry);
+      saveState();
+      renderTracker();
+      updateDashboard();
+    }
+
+    function toggleFavorite(name) {
+      const idx = state.favorites.indexOf(name);
+      if (idx >= 0) state.favorites.splice(idx, 1); else state.favorites.unshift(name);
+      saveState();
+      renderFavorites();
+      if (state.selectedFood?.name === name) renderFoodDetails(state.selectedFood);
+    }
+
+    function removeTracker(id) {
+      state.tracker = state.tracker.filter(item => item.id !== id);
+      saveState();
+      renderTracker();
+      updateDashboard();
+    }
+
+    function renderTracker() {
+      if (!state.tracker.length) {
+        els.mealTracker.innerHTML = '<div class="muted">No meals added yet. Search a food and add it to breakfast, lunch, dinner or snacks.</div>';
+        return;
+      }
+      els.mealTracker.innerHTML = state.tracker.map(item => `
+        <div class="meal-item">
+          <img src="${item.image}" alt="${item.name}">
+          <div>
+            <strong>${item.name}</strong>
+            <div class="muted">${item.qty} ${item.unitMode} • ${item.meal} • ${item.nutrition.calories} kcal</div>
+            <div class="muted">P ${item.nutrition.protein}g • C ${item.nutrition.carbs}g • F ${item.nutrition.fats}g</div>
+          </div>
+          <button class="btn btn-danger" onclick="removeTracker(${item.id})">Remove</button>
+        </div>`).join('');
+      bindRipple();
+    }
+    window.removeTracker = removeTracker;
+
+    function renderFavorites() {
+      const items = state.favorites.map(name => foodDB.find(f => f.name === name)).filter(Boolean);
+      els.favoritesList.innerHTML = items.length ? items.map(item => `
+        <div class="meal-item">
+          <img src="${item.image}" alt="${item.name}">
+          <div>
+            <strong>${item.name}</strong>
+            <div class="muted">${item.calories} kcal • ${item.protein}g protein</div>
+          </div>
+          <button class="btn" onclick="selectFood('${item.name.replace(/'/g, "\\'")}')">Open</button>
+        </div>`).join('') : '<div class="muted">No favorite foods saved yet.</div>';
+      bindRipple();
+    }
+    window.selectFood = selectFood;
+
+    function renderHistory() {
+      els.historyList.innerHTML = state.history.length ? state.history.slice(0, 10).map(item => `
+        <div class="meal-item">
+          <img src="${item.image}" alt="${item.name}">
+          <div>
+            <strong>${item.name}</strong>
+            <div class="muted">${item.ts}</div>
+          </div>
+          <span class="badge">${item.nutrition.calories} kcal</span>
+        </div>`).join('') : '<div class="muted">Meal history will appear here.</div>';
+    }
+
+    let mealChart, goalChart;
+    function updateDashboard() {
+      const totals = state.tracker.reduce((acc, item) => {
+        acc.calories += item.nutrition.calories;
+        acc.protein += item.nutrition.protein;
+        acc.carbs += item.nutrition.carbs;
+        acc.fats += item.nutrition.fats;
+        acc[item.meal] = (acc[item.meal] || 0) + item.nutrition.calories;
+        return acc;
+      }, { calories:0, protein:0, carbs:0, fats:0, breakfast:0, lunch:0, dinner:0, snacks:0 });
+
+      els.totalCalories.textContent = round(totals.calories);
+      els.totalProtein.textContent = round(totals.protein) + 'g';
+      els.totalCarbs.textContent = round(totals.carbs) + 'g';
+      els.totalFats.textContent = round(totals.fats) + 'g';
+
+      const data = [totals.breakfast, totals.lunch, totals.dinner, totals.snacks];
+      if (mealChart) mealChart.destroy();
+      mealChart = new Chart($('mealChart'), {
+        type: 'doughnut',
+        data: { labels: ['Breakfast','Lunch','Dinner','Snacks'], datasets: [{ data, borderWidth: 0, hoverOffset: 8 }] },
+        options: { plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text') } } } }
+      });
+
+      if (goalChart) goalChart.destroy();
+      const goalVal = state.goal?.calories || 0;
+      const remaining = Math.max(goalVal - totals.calories, 0);
+      goalChart = new Chart($('goalChart'), {
+        type: 'bar',
+        data: { labels: ['Consumed', 'Remaining'], datasets: [{ data: [round(totals.calories), round(remaining)] }] },
+        options: { responsive: true, scales: { x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text') } }, y: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text') } } }, plugins: { legend: { display: false } } }
+      });
+
+      if (goalVal) {
+        const percent = Math.min(100, round((totals.calories / goalVal) * 100));
+        els.goalStatus.textContent = `${round(totals.calories)} / ${goalVal} kcal consumed • ${percent}% of your daily goal`;
+      } else {
+        els.goalStatus.textContent = 'Set your calorie goal to see progress.';
+      }
+    }
+
+    function calcBMI() {
+      const h = Number(els.heightInput.value);
+      const w = Number(els.weightInput.value);
+      if (!h || !w) return els.bmiResult.textContent = 'BMI: Enter valid values';
+      const bmi = w / ((h / 100) ** 2);
+      let status = 'Normal';
+      if (bmi < 18.5) status = 'Underweight';
+      else if (bmi >= 25 && bmi < 30) status = 'Overweight';
+      else if (bmi >= 30) status = 'Obese';
+      els.bmiResult.textContent = `BMI: ${round(bmi)} (${status})`;
+    }
+
+    function saveGoal() {
+      const type = els.goalType.value;
+      const calories = Number(els.goalCalories.value);
+      if (!calories) return;
+      state.goal = { type, calories };
+      els.goalBadge.textContent = `${type.toUpperCase()} • ${calories} kcal/day`;
+      saveState();
+      updateDashboard();
+    }
+
+    function bindRipple() {
+      document.querySelectorAll('.btn').forEach(btn => {
+        if (btn.dataset.rippleBound) return;
+        btn.dataset.rippleBound = '1';
+        btn.addEventListener('click', function(e) {
+          const circle = document.createElement('span');
+          const diameter = Math.max(this.clientWidth, this.clientHeight);
+          const radius = diameter / 2;
+          circle.style.width = circle.style.height = `${diameter}px`;
+          circle.style.left = `${e.clientX - this.getBoundingClientRect().left - radius}px`;
+          circle.style.top = `${e.clientY - this.getBoundingClientRect().top - radius}px`;
+          circle.className = 'ripple';
+          const ripple = this.getElementsByClassName('ripple')[0];
+          if (ripple) ripple.remove();
+          this.appendChild(circle);
+        });
+      });
+    }
+
+    $('themeToggle').onclick = () => {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      document.body.classList.toggle('light', state.theme === 'light');
+      $('themeToggle').textContent = state.theme === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode';
+      saveState();
+      updateDashboard();
+    };
+
+    $('calcBmiBtn').onclick = calcBMI;
+    $('saveGoalBtn').onclick = saveGoal;
+    $('resetDataBtn').onclick = () => {
+      if (!confirm('Reset tracker, favorites, history, and goals?')) return;
+      state.tracker = []; state.favorites = []; state.history = []; state.goal = null;
+      saveState(); renderTracker(); renderFavorites(); renderHistory(); updateDashboard();
+      els.goalBadge.textContent = 'Goal not set'; els.goalCalories.value = '';
+    };
+
+    els.search.addEventListener('input', e => showSuggestions(e.target.value));
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.search-wrap')) els.suggestions.style.display = 'none';
+    });
+
+    function init() {
+      renderTracker();
+      renderFavorites();
+      renderHistory();
+      updateDashboard();
+      if (state.goal) {
+        els.goalType.value = state.goal.type;
+        els.goalCalories.value = state.goal.calories;
+        els.goalBadge.textContent = `${state.goal.type.toUpperCase()} • ${state.goal.calories} kcal/day`;
+      }
+      bindRipple();
+      selectFood('Roti');
+    }
+    init();
+  </script>
+</body>
+</html>
